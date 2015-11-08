@@ -277,7 +277,8 @@ public class NotificationUtils {
 
         // some devices crash if this field is not set
         // even if it is deprecated
-        n.setLatestEventInfo(context, from, body, pendingIntent);
+        // Can't be called when building with SDK 23 + as it's been removed
+        // n.setLatestEventInfo(context, from, body, pendingIntent);
 
         return n;
     }

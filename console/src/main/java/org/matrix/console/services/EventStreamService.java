@@ -627,12 +627,6 @@ public class EventStreamService extends Service {
     }
 
     private Notification buildNotification() {
-        Notification notification = new Notification(
-                (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.LOLLIPOP) ? R.drawable.ic_menu_small_matrix : R.drawable.ic_menu_small_matrix_transparent,
-                "Matrix",
-                System.currentTimeMillis()
-        );
-
         // go to the home screen if this is clicked.
         Intent i = new Intent(this, HomeActivity.class);
 
@@ -641,10 +635,15 @@ public class EventStreamService extends Service {
 
         PendingIntent pi = PendingIntent.getActivity(this, 0, i, 0);
 
-        notification.setLatestEventInfo(this, getString(R.string.app_name),
-                "Listening for events",
-                pi);
-        notification.flags |= Notification.FLAG_NO_CLEAR;
+        Notification notification = new Notification.Builder(this)
+        .setContentTitle(getString(R.string.app_name))
+        .setContentText("Listening for events")
+        .setContentIntent(pi)
+        .setSmallIcon(
+                (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.LOLLIPOP) ? R.drawable.ic_menu_small_matrix : R.drawable.ic_menu_small_matrix_transparent
+        )
+        .setOngoing(true)
+        .build();
         return notification;
     }
 
