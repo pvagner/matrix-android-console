@@ -107,6 +107,8 @@ public class RoomActivity extends MXCActionBarActivity {
     // the room is launched but it expects to start the dedicated call activity
     public static final String EXTRA_START_CALL_ID = "org.matrix.console.RoomActivity.EXTRA_START_CALL_ID";
 
+    public static final String EXTRA_START_FROM_PUSH = "org.matrix.console.RoomActivity.EXTRA_START_FROM_PUSH";
+
     private static final String TAG_FRAGMENT_MATRIX_MESSAGE_LIST = "org.matrix.console.RoomActivity.TAG_FRAGMENT_MATRIX_MESSAGE_LIST";
     private static final String TAG_FRAGMENT_MEMBERS_DIALOG = "org.matrix.console.RoomActivity.TAG_FRAGMENT_MEMBERS_DIALOG";
     private static final String TAG_FRAGMENT_INVITATION_MEMBERS_DIALOG = "org.matrix.console.RoomActivity.TAG_FRAGMENT_INVITATION_MEMBERS_DIALOG";
@@ -122,8 +124,6 @@ public class RoomActivity extends MXCActionBarActivity {
     private static final String PENDING_MEDIA_URL = "PENDING_MEDIA_URL";
     private static final String PENDING_MIMETYPE = "PENDING_MIMETYPE";
     private static final String PENDING_FILENAME = "PENDING_FILENAME";
-
-    private static final String FIRST_VISIBLE_ROW = "FIRST_VISIBLE_ROW";
 
     private static final String CAMERA_VALUE_TITLE = "attachment"; // Samsung devices need a filepath to write to or else won't return a Uri (!!!)
 
@@ -186,9 +186,6 @@ public class RoomActivity extends MXCActionBarActivity {
     private TimerTask mTypingTimerTask;
     private long  mLastTypingDate = 0;
 
-    // scroll to a dedicated index
-    private int mScrollToIndex = -1;
-
     private Boolean mIgnoreTextUpdate = false;
 
     private MXEventListener mEventListener = new MXEventListener() {
@@ -204,20 +201,6 @@ public class RoomActivity extends MXCActionBarActivity {
                             || Event.EVENT_TYPE_STATE_ROOM_MEMBER.equals(event.type)) {
                         setTitle(mRoom.getName(mMyUserId));
                         updateMenuEntries();
-
-                        // check if the user does not leave the room with another client
-                        if (Event.EVENT_TYPE_STATE_ROOM_MEMBER.equals(event.type) && mMyUserId.equals(event.stateKey)) {
-                            RoomMember myMember = mRoom.getMember(mMyUserId);
-
-                            if ((null != myMember) && (RoomMember.MEMBERSHIP_LEAVE.equals(myMember.membership))) {
-                                runOnUiThread(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        RoomActivity.this.finish();
-                                    }
-                                });
-                            }
-                        }
                     }
                     else if (Event.EVENT_TYPE_STATE_ROOM_TOPIC.equals(event.type)) {
                         Log.e(LOG_TAG, "Updating room topic.");
@@ -255,6 +238,17 @@ public class RoomActivity extends MXCActionBarActivity {
                 public void run() {
                     updateMenuEntries();
                     mConsoleMessageListFragment.onBingRulesUpdate();
+                }
+            });
+        }
+
+
+        @Override
+        public void onLeaveRoom(String roomId) {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    RoomActivity.this.finish();
                 }
             });
         }
@@ -378,15 +372,20 @@ public class RoomActivity extends MXCActionBarActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        Intent intent = getIntent();
+
         if (CommonActivityUtils.shouldRestartApp()) {
-            Log.e(LOG_TAG, "Restart the application.");
-            CommonActivityUtils.restartApp(this);
+            if (intent.hasExtra(EXTRA_START_FROM_PUSH)) {
+                Log.e(LOG_TAG, "Room activity is started from push but the application should be restarted");
+            } else {
+                Log.e(LOG_TAG, "Restart the application.");
+                CommonActivityUtils.restartApp(this);
+            }
         }
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_room);
 
-        Intent intent = getIntent();
         if (!intent.hasExtra(EXTRA_ROOM_ID)) {
             Log.e(LOG_TAG, "No room ID extra.");
             finish();
@@ -792,21 +791,8 @@ public class RoomActivity extends MXCActionBarActivity {
             savedInstanceState.putString(PENDING_FILENAME, mPendingFilename);
             Log.d(LOG_TAG, "onSaveInstanceState mPendingFilename " + mPendingFilename);
         }
-
-        savedInstanceState.putInt(FIRST_VISIBLE_ROW, mConsoleMessageListFragment.mMessageListView.getFirstVisiblePosition());
     }
-
-    @Override
-    protected void onRestoreInstanceState(Bundle savedInstanceState) {
-        super.onRestoreInstanceState(savedInstanceState);
-
-        if (savedInstanceState.containsKey(FIRST_VISIBLE_ROW)) {
-            // the scroll will be done in resume.
-            // the listView will be refreshed so the offset might be lost.
-            mScrollToIndex = savedInstanceState.getInt(FIRST_VISIBLE_ROW);
-        }
-    }
-
+    
     /**
      *
      */
@@ -886,18 +872,6 @@ public class RoomActivity extends MXCActionBarActivity {
 
         // refresh the UI : the timezone could have been updated
         mConsoleMessageListFragment.refresh();
-
-        // the device has been rotated
-        // so try to keep the same top/left item;
-        if (mScrollToIndex > 0) {
-            mConsoleMessageListFragment.mMessageListView.post(new Runnable() {
-                @Override
-                public void run() {
-                    mConsoleMessageListFragment.mMessageListView.setSelection(mScrollToIndex);
-                    mScrollToIndex = -1;
-                }
-            });
-        }
 
         if (null != mCallId) {
             IMXCall call = CallViewActivity.getActiveCall();
