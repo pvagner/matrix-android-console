@@ -200,8 +200,6 @@
             android:name="org.matrix.console.db.ConsoleContentProvider"
             android:exported="true" />
 
-    </application>
-
     <!-- Google Analytics -->
     <receiver android:name="com.google.android.gms.analytics.CampaignTrackingReceiver"
         android:enabled="true"
@@ -220,5 +218,7 @@
     <service android:name="com.google.android.gms.analytics.AnalyticsService"
         android:enabled="true"
         android:exported="false"/>
+
+    </application>
 
 </manifest>
